@@ -11,7 +11,7 @@ clc; clear; close all;
 Nt = 8;
 Nr = 8;
 N  = 16;
-L  = 5;
+L  = 20;  % 增加延迟分辨率，避免散射点耦合
 num_frames = 300;
 K  = num_frames; % 关键修改：令 K 等于帧数，确保 1 PRI = 1 Frame
 P  = 6;
@@ -184,38 +184,70 @@ fprintf('Final KF-receiver worst-case SINR: %.4f dB\n', final_frontend_kf_db);
 % 2. Generate true trajectory for ALL scatterers
 %% ============================================================
 
-% Each scatterer has its own trajectory
-theta_true_all = zeros(num_frames, P);
-omega_true_all = zeros(num_frames, P);
-amp_true_all = zeros(num_frames, P);
-phase_true_all = zeros(num_frames, P);
+% All scatterers share the SAME angular motion (synchronized)
+% because they belong to the same extended target.
+% Each scatterer has a fixed offset from a reference DOA.
 
 theta_min = theta_grid(1);
 theta_max = theta_grid(end);
 
+% Generate initial DOA for each scatterer with sufficient separation
+% to avoid coupling (at least 10 degrees apart)
+theta_offset = zeros(P, 1);
+theta_start_ref = 45;  % Reference starting DOA in degrees
+
 for p = 1:P
-    % Initial conditions for scatterer p
-    theta_true_all(1, p) = theta_true_seq_design(p, 1);
-    omega_true_all(1, p) = 1 * pi / 180;  % Initial angular velocity
+    % Spread scatterers across different angles with sufficient separation
+    theta_offset(p) = (p - (P+1)/2) * 12;  % 12 degrees separation
+end
+
+% Shared angular velocity trajectory for all scatterers
+omega_shared = zeros(num_frames, 1);
+omega_shared(1) = 1 * pi / 180;  % Initial angular velocity
+
+for frame_idx = 2:num_frames
+    omega_shared(frame_idx) = omega_shared(frame_idx - 1) + ...
+        omega_proc_sigma_deg * pi / 180 * randn;
+end
+
+% Reflect at boundaries to keep within valid range
+theta_pred_shared = zeros(num_frames, 1);
+theta_pred_shared(1) = theta_start_ref * pi / 180;
+
+for frame_idx = 2:num_frames
+    theta_pred = theta_pred_shared(frame_idx - 1) + omega_shared(frame_idx - 1) + ...
+        theta_proc_sigma_deg * pi / 180 * randn;
+    
+    if theta_pred < theta_min || theta_pred > theta_max
+        omega_shared(frame_idx) = -omega_shared(frame_idx);
+        theta_pred = theta_pred_shared(frame_idx - 1) + omega_shared(frame_idx) + ...
+            theta_proc_sigma_deg * pi / 180 * randn;
+    end
+    
+    theta_pred_shared(frame_idx) = min(max(theta_pred, theta_min), theta_max);
+end
+
+% Now generate individual scatterer trajectories with shared motion + fixed offset
+theta_true_all = zeros(num_frames, P);
+amp_true_all = zeros(num_frames, P);
+phase_true_all = zeros(num_frames, P);
+
+for p = 1:P
+    for frame_idx = 1:num_frames
+        % Each scatterer follows the same angular motion but with its own offset
+        theta_true_all(frame_idx, p) = theta_pred_shared(frame_idx) + theta_offset(p) * pi / 180;
+        
+        % Ensure within bounds
+        theta_true_all(frame_idx, p) = min(max(theta_true_all(frame_idx, p), theta_min), theta_max);
+    end
+    
+    % Amplitude and phase are independent for each scatterer
     amp_true_all(1, p) = 1.0;
     phase_true_all(1, p) = 0;
     
     fprintf('Scatterer %d initial DOA: %.2f deg\n', p, theta_true_all(1,p)*180/pi);
     
     for frame_idx = 2:num_frames
-        omega_true_all(frame_idx, p) = omega_true_all(frame_idx - 1, p) + ...
-            omega_proc_sigma_deg * pi / 180 * randn;
-        
-        theta_pred = theta_true_all(frame_idx - 1, p) + omega_true_all(frame_idx - 1, p) + ...
-            theta_proc_sigma_deg * pi / 180 * randn;
-
-        if theta_pred < theta_min || theta_pred > theta_max
-            omega_true_all(frame_idx, p) = -omega_true_all(frame_idx, p);
-            theta_pred = theta_true_all(frame_idx - 1, p) + omega_true_all(frame_idx, p) + ...
-                theta_proc_sigma_deg * pi / 180 * randn;
-        end
-
-        theta_true_all(frame_idx, p) = min(max(theta_pred, theta_min), theta_max);
         amp_true_all(frame_idx, p) = max(0.6, amp_true_all(frame_idx - 1, p) + beta_amp_sigma * randn);
         phase_true_all(frame_idx, p) = phase_true_all(frame_idx - 1, p) + beta_phase_sigma * randn;
     end
@@ -223,15 +255,16 @@ end
 
 beta_true_all = amp_true_all .* exp(1j * phase_true_all);
 
-fprintf('\n=== True Trajectories ===\n');
+fprintf('\n=== True Trajectories (Synchronized Motion) ===\n');
 for p = 1:P
-    fprintf('Scatterer %d: Start=%.2f deg, End=%.2f deg\n', ...
-        p, theta_true_all(1,p)*180/pi, theta_true_all(end,p)*180/pi);
+    fprintf('Scatterer %d: Start=%.2f deg, End=%.2f deg, Offset=%.1f deg\n', ...
+        p, theta_true_all(1,p)*180/pi, theta_true_all(end,p)*180/pi, theta_offset(p));
 end
 
 %% ============================================================
 % 3. Build score maps for EACH scatterer (严格 1 PRI = 1 Frame)
 %% ============================================================
+
 
 num_grid = numel(theta_grid);
 
