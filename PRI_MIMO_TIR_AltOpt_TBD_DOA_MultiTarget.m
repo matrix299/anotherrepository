@@ -391,8 +391,8 @@ xline(theta_frame_ml_all(1, p_plot)*180/pi, 'g--', 'ML Estimate', 'LineWidth', 2
 grid on;
 xlabel('DOA (deg)');
 ylabel('Score');
-title(sprintf('Frame 1 Score (Scatterer %d): True=%.1f deg, ML=%.1f deg', ...
-    p_plot, theta_true_all(1, p_plot)*180/pi, theta_frame_ml_all(1, p_plot)*180/pi));
+title(sprintf('Frame 1 Score: True=%.1f deg, ML=%.1f deg', ...
+    theta_true_all(1, p_plot)*180/pi, theta_frame_ml_all(1, p_plot)*180/pi));
 legend('Score', 'True', 'ML');
 
 subplot(1, 2, 2);
@@ -411,7 +411,7 @@ plot(1:num_frames, theta_true_all(:, p_plot) * 180 / pi, 'w-', 'LineWidth', 2.5)
 plot(1:num_frames, theta_frame_ml_all(:, p_plot) * 180 / pi, 'yo', 'MarkerSize', 4);
 xlabel('Frame index');
 ylabel('DOA (deg)');
-title(sprintf('Score Map Heatmap (Scatterer %d)', p_plot));
+title('Score Map Heatmap');
 legend('True Trajectory', 'ML Estimates');
 
 figure('Name', 'DOA Tracking Comparison', 'NumberTitle', 'off');
@@ -423,28 +423,9 @@ plot(1:num_frames, theta_tbd_all(:, p_plot) * 180 / pi, 'rs-', ...
 grid on;
 xlabel('Frame index');
 ylabel('DOA (deg)');
-title(sprintf('DOA Tracking (Scatterer %d): ML RMSE = %.3f deg, TBD RMSE = %.3f deg', ...
-    p_plot, rmse_ml_deg_per_scatterer(p_plot), rmse_tbd_deg_per_scatterer(p_plot)));
+title(sprintf('DOA tracking: ML RMSE = %.3f deg, TBD RMSE = %.3f deg', ...
+    rmse_ml_deg_per_scatterer(p_plot), rmse_tbd_deg_per_scatterer(p_plot)));
 legend('True DOA', 'Frame-by-frame ML', 'TBD track', 'Location', 'best');
-
-%% Additional figure: All scatterers tracking comparison
-figure('Name', 'All Scatterers Tracking', 'NumberTitle', 'off', 'Position', [100, 100, 1400, 800]);
-
-colors = lines(P);
-for p = 1:P
-    subplot(ceil(P/2), 2, p);
-    plot(1:num_frames, theta_true_all(:, p) * 180 / pi, 'k-', 'LineWidth', 2.0); hold on;
-    plot(1:num_frames, theta_frame_ml_all(:, p) * 180 / pi, 'bo--', ...
-        'LineWidth', 1.0, 'MarkerSize', 3, 'Color', colors(p,:));
-    plot(1:num_frames, theta_tbd_all(:, p) * 180 / pi, 'rs-', ...
-        'LineWidth', 1.5, 'MarkerSize', 4, 'Color', colors(p,:));
-    grid on;
-    xlabel('Frame index');
-    ylabel('DOA (deg)');
-    title(sprintf('Scatterer %d: ML=%.3f°, TBD=%.3f°', ...
-        p, rmse_ml_deg_per_scatterer(p), rmse_tbd_deg_per_scatterer(p)));
-    legend('True', 'ML', 'TBD', 'Location', 'best');
-end
 
 %% ============================================================
 % Local functions
