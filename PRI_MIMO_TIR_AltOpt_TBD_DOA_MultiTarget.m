@@ -363,7 +363,13 @@ title(sprintf('Frame 1 Score (Scatterer %d): True=%.1f deg, ML=%.1f deg', ...
 legend('Score', 'True', 'ML');
 
 subplot(1, 2, 2);
-score_map_db = 10 * log10(score_map_all(:, :, p_plot)' / max(score_map_all(:, :, p_plot)(:)) + 1e-12);
+score_slice = score_map_all(:, :, p_plot);
+max_val = max(score_slice(:));
+if max_val > 1e-12
+    score_map_db = 10 * log10(score_slice / max_val + 1e-12);
+else
+    score_map_db = 10 * log10(score_slice + 1e-12);
+end
 imagesc(1:num_frames, theta_grid_deg, score_map_db);
 axis xy;
 colorbar;
