@@ -1,0 +1,1 @@
+Nothing should be ignored based on the provided file changes. The modified file 'PRI_MIMO_TIR_AltOpt_TBD_DOA_MultiTarget.m' is a source code file (.m MATLAB/Octave file) which should not be ignored according to rule #7. Since there are no build artifacts, dependencies, or temporary files in the changes, no .gitignore rules are needed.
